@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`derive full snapshot (bidirectional / none) 1`] = `
+[
+  {
+    "colorId": 7,
+    "deployIn": "A",
+    "lookaheadDays": 30,
+    "mirrorPrefix": "[AA]",
+    "scriptId": "mirrors-on-A",
+    "sourceCalendarId": "b@example.com",
+    "sourceOwnerEmail": "b@example.com",
+    "targetCalendarId": "primary",
+  },
+  {
+    "colorId": 2,
+    "deployIn": "B",
+    "lookaheadDays": 30,
+    "mirrorPrefix": "[BB]",
+    "scriptId": "mirrors-on-B",
+    "sourceCalendarId": "a@example.com",
+    "sourceOwnerEmail": "a@example.com",
+    "targetCalendarId": "primary",
+  },
+]
+`;

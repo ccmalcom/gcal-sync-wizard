@@ -24,17 +24,22 @@ telemetry.
 
 ## Current state
 
-Walking skeleton complete (build order step 1). The script generation pipeline
-is implemented and verified end-to-end:
+Build order steps 1–4 complete. Live form with full restricted-account branching:
 
 - `app/_lib/config/types.ts` — `ColorId`, `WizardConfig`, `DeploymentPlan`, `GeneratedScript`
+- `app/_lib/config/defaults.ts` — `DEFAULT_CONFIG` (colorOnA=7/Peacock, colorOnB=2/Sage, 30 days, bidirectional)
+- `app/_lib/config/derive.ts` — `derive(config) → DeploymentPlan[]`; handles all direction + restrictedAccount combos
 - `app/_lib/script/template.ts` — `SCRIPT_BODY` (reference script body, CONFIG stripped)
 - `app/_lib/script/generate.ts` — `generate(plan: DeploymentPlan): string`
-- `app/page.tsx` — client component; hard-coded `DeploymentPlan`, renders generated script in `<pre>` with copy button
+- `app/_lib/script/colors.ts` — `COLOR_NAMES` lookup table (colorId → human name)
+- `app/page.tsx` — live form (`useState<WizardConfig>`); calls `derive()`, renders per-plan summary + copy button + `<pre>`
+- `app/_lib/config/derive.test.ts` — 8 Vitest tests covering all direction × restriction combos + snapshot
+- `app/_lib/script/generate.test.ts` — snapshot + config injection assertions
+
+Test framework: Vitest (`npm test`). All 10 tests pass.
 
 The generated script has been pasted into a real Apps Script project and
-confirmed to run in dry-run mode. Next step: replace the hard-coded plan with a
-real form (build order step 2).
+confirmed to run in dry-run mode. Next step: multi-step wizard shell (build order step 5).
 
 ## Reference: current working Apps Script
 

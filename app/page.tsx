@@ -34,8 +34,11 @@ const groupStyle = {
 
 function planSummary(plan: DeploymentPlan, config: WizardConfig): string {
   const deployEmail = plan.deployIn === 'A' ? config.accountA.email : config.accountB.email;
-  const sourceAccount = plan.deployIn === 'A' ? 'B' : 'A';
-  return `Deploy in Account ${plan.deployIn}${deployEmail ? ` (${deployEmail})` : ''} · reads from Account ${sourceAccount} · writes busy blocks to Account ${plan.deployIn}'s calendar`;
+  const sourceAccount = plan.sourceCalendarId === config.accountA.email ? 'A' : 'B';
+  const writesTo = plan.targetCalendarId === 'primary'
+    ? plan.deployIn
+    : plan.targetCalendarId === config.accountA.email ? 'A' : 'B';
+  return `Deploy in Account ${plan.deployIn}${deployEmail ? ` (${deployEmail})` : ''} · reads from Account ${sourceAccount} · writes busy blocks to Account ${writesTo}'s calendar`;
 }
 
 export default function Home() {
