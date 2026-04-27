@@ -112,21 +112,15 @@ function planSummary(plan: DeploymentPlan, config: WizardConfig): string {
 
 const LS_KEY = 'gcal-wizard';
 
-export default function Home() {
-  const [config, setConfig] = useState<WizardConfig>(DEFAULT_CONFIG);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
+function loadSaved() {
+  if (typeof window === 'undefined') return null;
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? 'null'); } catch { return null; }
+}
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved.config) setConfig(saved.config);
-        if (typeof saved.step === 'number') setStep(saved.step);
-      }
-    } catch { /* ignore */ }
-  }, []);
+export default function Home() {
+  const [config, setConfig] = useState<WizardConfig>(() => loadSaved()?.config ?? DEFAULT_CONFIG);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [step, setStep] = useState<number>(() => loadSaved()?.step ?? 0);
 
   useEffect(() => {
     try {
