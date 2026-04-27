@@ -9,7 +9,7 @@
 - Tailwind CSS
 - React 19
 - Deploy target: Vercel
-- Package manager: pnpm
+- Package manager: npm
 
 ## Project goal
 
@@ -24,12 +24,21 @@ telemetry.
 
 ## Current state
 
-Fresh scaffold. No wizard logic implemented yet. Next step: build the form
-inputs and script generation logic per the suggested build order above.
+Walking skeleton complete (build order step 1). The script generation pipeline
+is implemented and verified end-to-end:
+
+- `app/_lib/config/types.ts` — `ColorId`, `WizardConfig`, `DeploymentPlan`, `GeneratedScript`
+- `app/_lib/script/template.ts` — `SCRIPT_BODY` (reference script body, CONFIG stripped)
+- `app/_lib/script/generate.ts` — `generate(plan: DeploymentPlan): string`
+- `app/page.tsx` — client component; hard-coded `DeploymentPlan`, renders generated script in `<pre>` with copy button
+
+The generated script has been pasted into a real Apps Script project and
+confirmed to run in dry-run mode. Next step: replace the hard-coded plan with a
+real form (build order step 2).
 
 ## Reference: current working Apps Script
 
-The script the wizard generates is at `reference/busy-mirror.gs`. The wizard
+The script the wizard generates is at `reference/busy-mirror.js`. The wizard
 substitutes CONFIG values; the rest is identical between deployments.
 
 ## Background context
@@ -129,7 +138,7 @@ provide diagnostic flows for common failure modes.
 - Friendly label for Account B (used as MIRROR_PREFIX, e.g., "[SH]")
 - Color choice for Account A mirrors (visual swatch picker → colorId)
 - Color choice for Account B mirrors (visual swatch picker → colorId)
-- Lookahead days (default 60)
+- Lookahead days (default 30)
 - Bidirectional vs one-way (with explanation of when you'd pick each)
 - If one-way: which account has Apps Script blocked? (drives the deployment
   configuration — the script gets deployed in the _unrestricted_ account
@@ -156,12 +165,6 @@ provide diagnostic flows for common failure modes.
   button) so users can read what they're pasting — credibility/trust is
   important for security-conscious users
 
-### Pre-flight checks (nice to have)
-
-- After they say sharing is set up, optionally verify by checking the public
-  free/busy endpoint (no auth required) — catches the "share didn't propagate"
-  case before they get a confusing error in Apps Script
-
 ### Diagnostic flow at the end
 
 - "Verify it's working" checkpoint with branching:
@@ -183,7 +186,6 @@ provide diagnostic flows for common failure modes.
 
 ## Architecture
 
-- **Pure static Next.js site** — `next export` compatible
 - **No backend** — everything client-side
 - **No auth** — users paste their own emails into a local form
 - **No telemetry, no accounts, no server-side anything**
@@ -203,13 +205,6 @@ calendars. The site needs to:
 - Suggest users in regulated orgs get security-team sign-off before deploying
 - Frame the site as a "config helper," not a black box service
 - Have no analytics or tracking — privacy-respecting by default
-
-## Reference: current working Apps Script
-
-This is the script the wizard generates. It's been tested in production. The
-wizard fills in CONFIG values; the rest is identical between deployments.
-
-[PASTE YOUR CURRENT WORKING SCRIPT HERE]
 
 ## Color reference (Google Calendar event colorIds)
 
@@ -238,19 +233,17 @@ wizard fills in CONFIG values; the rest is identical between deployments.
 
 ## Suggested build order
 
-1. Static page structure with multi-step wizard scaffolding and localStorage
-   persistence
-2. Form inputs for the configuration values
-3. Script generation logic (template literal with CONFIG substitution)
-4. Step-by-step instruction generation with the user's actual values
-   substituted in
-5. Color picker UI with visual swatches
-6. Copy-to-clipboard buttons throughout
-7. Branching logic for one-way vs bidirectional and which account is restricted
-8. Troubleshooting accordions per step
-9. Final "verify it's working" diagnostic flow
-10. Polish: clear empty states, validation (catch typos in email addresses,
-    warn if SOURCE and TARGET are the same), GitHub source links, disclaimers
+1. ✅ Walking skeleton: `template.ts` + `generate.ts` + hard-coded `DeploymentPlan` in `page.tsx`
+2. Real form for Phase 1 step 1 (emails, labels, colors, lookahead). `useState`, no persistence.
+3. `derive()` + render `DeploymentPlan[]` summary.
+4. Bidirectional + restricted-account branching in `derive()`. Snapshot tests.
+5. Multi-step shell: Phase 1 only, prev/next.
+6. localStorage persistence + "Start over" button.
+7. Phase 2 step shell: generic execute-step component.
+8. Personalized instruction copy per Phase 2 step.
+9. Troubleshooting accordions per step.
+10. Phase 3 diagnostic flow.
+11. Polish: validation, color picker UI, GitHub links, disclaimers, a11y.
 
 ## Notes for Claude Code
 
