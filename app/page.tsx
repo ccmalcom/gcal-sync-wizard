@@ -6,10 +6,77 @@ import { DEFAULT_CONFIG } from './_lib/config/defaults';
 import { derive } from './_lib/config/derive';
 import { generate } from './_lib/script/generate';
 import { COLOR_NAMES } from './_lib/script/colors';
+import { ExecuteStep, ExecuteStepDef } from './components/ExecuteStep';
 
 const COLOR_IDS = Object.keys(COLOR_NAMES).map(Number) as ColorId[];
 
-const STEP_TITLES = ['Your accounts', 'Sync settings', 'Your scripts'];
+const PHASE2_STEPS: ExecuteStepDef[] = [
+  {
+    title: 'Share your calendars',
+    body: 'Personalized sharing instructions will appear here in Step 8.',
+    troubleshootItems: [
+      {
+        symptom: 'Sharing option is greyed out or unavailable',
+        fix: 'Your Google Workspace admin may restrict external calendar sharing. Ask your IT admin to allow "Share with specific people" for your account.',
+      },
+      {
+        symptom: 'The other person says they never received the sharing invitation',
+        fix: 'Try removing the share and re-adding it. The invitation email can sometimes be delayed or land in spam.',
+      },
+    ],
+  },
+  {
+    title: 'Create the Apps Script project',
+    body: 'Personalized project creation instructions will appear here in Step 8.',
+    troubleshootItems: [
+      {
+        symptom: 'script.google.com shows an error or redirects away',
+        fix: 'Your organization may block Google Apps Script. Go back to "Sync settings" and set the restricted account — the wizard will redirect that script to deploy in your other account instead.',
+      },
+    ],
+  },
+  {
+    title: 'Enable the Calendar API and paste the script',
+    body: 'Personalized paste instructions will appear here in Step 8.',
+    troubleshootItems: [
+      {
+        symptom: "Can't find the Calendar API service",
+        fix: 'In the Apps Script editor, go to Services (+ icon in the left sidebar), scroll to "Google Calendar API", and click Add.',
+      },
+    ],
+  },
+  {
+    title: 'Run the script and authorize',
+    body: 'Personalized run instructions will appear here in Step 8.',
+    troubleshootItems: [
+      {
+        symptom: '"This app isn\'t verified" warning',
+        fix: 'This is expected — the script is running under your own account, not a published app. Click "Advanced" → "Go to [project name] (unsafe)" to proceed.',
+      },
+      {
+        symptom: 'Authorization dialog never appears',
+        fix: 'Make sure you are running syncCalendars (not installTrigger) for the first run. Check that pop-ups are allowed for script.google.com in your browser.',
+      },
+    ],
+  },
+  {
+    title: 'Verify mirrors are appearing',
+    body: 'Personalized verification instructions will appear here in Step 8.',
+    troubleshootItems: [
+      {
+        symptom: 'No mirrors appeared after running',
+        fix: 'Check the Apps Script execution log (View → Executions) for errors. Make sure DRY_RUN is false and the calendar share was accepted.',
+      },
+      {
+        symptom: 'Mirrors appeared but have the wrong color or prefix',
+        fix: 'Go back to step 1 ("Your accounts") and double-check the label and color settings, then regenerate and re-paste the script.',
+      },
+    ],
+  },
+];
+
+const PHASE1_TITLES = ['Your accounts', 'Sync settings', 'Your scripts'];
+const STEP_TITLES = [...PHASE1_TITLES, ...PHASE2_STEPS.map(s => s.title)];
 
 const fieldStyle = {
   display: 'block',
@@ -248,6 +315,10 @@ export default function Home() {
             </div>
           )}
         </div>
+      )}
+
+      {step >= PHASE1_TITLES.length && (
+        <ExecuteStep {...PHASE2_STEPS[step - PHASE1_TITLES.length]} />
       )}
 
       {step === 2 && plans.map((plan, i) => (
