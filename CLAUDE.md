@@ -240,8 +240,8 @@ calendars. The site needs to:
 ## Suggested build order
 
 1. ✅ Walking skeleton: `template.ts` + `generate.ts` + hard-coded `DeploymentPlan` in `page.tsx`
-2. Real form for Phase 1 step 1 (emails, labels, colors, lookahead). `useState`, no persistence.
-3. `derive()` + render `DeploymentPlan[]` summary.
+2. ✅ Real form for Phase 1 step 1 (emails, labels, colors, lookahead). `useState`, no persistence.
+3. ✅ `derive()` + render `DeploymentPlan[]` summary.
 4. Bidirectional + restricted-account branching in `derive()`. Snapshot tests.
 5. ✅ Multi-step shell: Phase 1 only, prev/next.
 6. ✅ localStorage persistence + "Start over" button.
