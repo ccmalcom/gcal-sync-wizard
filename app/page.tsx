@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { WizardConfig, DeploymentPlan, ColorId } from './_lib/config/types';
 import { DEFAULT_CONFIG } from './_lib/config/defaults';
+import { derive } from './_lib/config/derive';
 import { generate } from './_lib/script/generate';
 import { COLOR_NAMES } from './_lib/script/colors';
 
@@ -31,9 +32,15 @@ const groupStyle = {
   marginBottom: '0.75rem',
 };
 
+function planSummary(plan: DeploymentPlan, config: WizardConfig): string {
+  const deployEmail = plan.deployIn === 'A' ? config.accountA.email : config.accountB.email;
+  const sourceAccount = plan.deployIn === 'A' ? 'B' : 'A';
+  return `Deploy in Account ${plan.deployIn}${deployEmail ? ` (${deployEmail})` : ''} · reads from Account ${sourceAccount} · writes busy blocks to Account ${plan.deployIn}'s calendar`;
+}
+
 export default function Home() {
   const [config, setConfig] = useState<WizardConfig>(DEFAULT_CONFIG);
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function setA(patch: Partial<WizardConfig['accountA']>) {
     setConfig(c => ({ ...c, accountA: { ...c.accountA, ...patch } }));
@@ -42,23 +49,12 @@ export default function Home() {
     setConfig(c => ({ ...c, accountB: { ...c.accountB, ...patch } }));
   }
 
-  const plan: DeploymentPlan = {
-    scriptId: 'mirrors-on-A',
-    deployIn: 'A',
-    sourceCalendarId: config.accountB.email,
-    sourceOwnerEmail: config.accountB.email,
-    targetCalendarId: 'primary',
-    mirrorPrefix: config.accountA.label,
-    colorId: config.colorOnA,
-    lookaheadDays: config.lookaheadDays,
-  };
+  const plans = derive(config);
 
-  const script = generate(plan);
-
-  function handleCopy() {
-    navigator.clipboard.writeText(script).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  function handleCopy(plan: DeploymentPlan) {
+    navigator.clipboard.writeText(generate(plan)).then(() => {
+      setCopiedId(plan.scriptId);
+      setTimeout(() => setCopiedId(null), 2000);
     });
   }
 
@@ -195,47 +191,41 @@ export default function Home() {
         )}
       </div>
 
-      <p style={{
-        fontFamily: 'sans-serif',
-        fontSize: '0.8rem',
-        background: '#fffbeb',
-        border: '1px solid #fbbf24',
-        borderRadius: '4px',
-        padding: '0.5rem 0.75rem',
-        marginBottom: '0.75rem',
-      }}>
-        ⚠ Only showing Script 1 of 2. Full bidirectional/one-way logic comes in step 3.
-      </p>
-
-      <button
-        onClick={handleCopy}
-        style={{
-          marginBottom: '0.75rem',
-          padding: '0.5rem 1rem',
-          cursor: 'pointer',
-          background: copied ? '#16a34a' : '#1d4ed8',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          fontFamily: 'sans-serif',
-          fontSize: '0.85rem',
-        }}
-      >
-        {copied ? 'Copied!' : 'Copy script'}
-      </button>
-
-      <pre style={{
-        background: '#1e1e1e',
-        color: '#d4d4d4',
-        padding: '1rem',
-        overflowX: 'auto',
-        fontSize: '0.8rem',
-        lineHeight: '1.5',
-        borderRadius: '4px',
-        whiteSpace: 'pre',
-      }}>
-        {script}
-      </pre>
+      {plans.map((plan, i) => (
+        <div key={plan.scriptId} style={{ marginBottom: '2rem' }}>
+          <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+            <strong>Script {i + 1}</strong> — {planSummary(plan, config)}
+          </p>
+          <button
+            onClick={() => handleCopy(plan)}
+            style={{
+              marginBottom: '0.5rem',
+              padding: '0.5rem 1rem',
+              cursor: 'pointer',
+              background: copiedId === plan.scriptId ? '#16a34a' : '#1d4ed8',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              fontFamily: 'sans-serif',
+              fontSize: '0.85rem',
+            }}
+          >
+            {copiedId === plan.scriptId ? 'Copied!' : 'Copy script'}
+          </button>
+          <pre style={{
+            background: '#1e1e1e',
+            color: '#d4d4d4',
+            padding: '1rem',
+            overflowX: 'auto',
+            fontSize: '0.8rem',
+            lineHeight: '1.5',
+            borderRadius: '4px',
+            whiteSpace: 'pre',
+          }}>
+            {generate(plan)}
+          </pre>
+        </div>
+      ))}
     </main>
   );
 }
