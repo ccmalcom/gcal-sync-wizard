@@ -10,6 +10,14 @@ import { ExecuteStep, ExecuteStepDef, TroubleshootAccordion, TroubleshootItem } 
 
 const COLOR_IDS = Object.keys(COLOR_NAMES).map(Number) as ColorId[];
 
+const COLOR_HEX: Record<ColorId, string> = {
+  1: '#7986cb', 2: '#33b679', 3: '#8e24aa', 4: '#e67c73',
+  5: '#f6c026', 6: '#f5511d', 7: '#039be5', 8: '#616161',
+  9: '#3f51b5', 10: '#0f9d58', 11: '#d50000',
+};
+
+const GITHUB_URL = ''; // fill in once repo is public
+
 function CopyBlock({ content, label }: { content: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -74,6 +82,112 @@ function CopyBlock({ content, label }: { content: string; label?: string }) {
       >
         {content}
       </pre>
+    </div>
+  );
+}
+
+function ColorPicker({ value, onChange }: { value: ColorId; onChange: (id: ColorId) => void }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.25rem' }}>
+      {COLOR_IDS.map(id => (
+        <button
+          key={id}
+          type="button"
+          title={COLOR_NAMES[id]}
+          aria-label={COLOR_NAMES[id]}
+          aria-pressed={value === id}
+          onClick={() => onChange(id)}
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            background: COLOR_HEX[id],
+            border: value === id ? '3px solid #000' : '2px solid transparent',
+            outline: value === id ? '2px solid #fff' : 'none',
+            outlineOffset: '-4px',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function VerificationStep({ plans, config }: { plans: DeploymentPlan[]; config: WizardConfig }) {
+  const emailA = config.accountA.email || 'Account A email';
+  const emailB = config.accountB.email || 'Account B email';
+  const total = plans.length + 1;
+  const [checked, setChecked] = useState<boolean[]>(() => Array(total).fill(false));
+  const allDone = checked.every(Boolean);
+
+  function toggle(i: number) {
+    setChecked(prev => prev.map((v, idx) => idx === i ? !v : v));
+  }
+
+  const instruction = plans.length === 1
+    ? `Create a test event on ${plans[0].sourceOwnerEmail}'s calendar and wait up to 15 minutes. Then check each item below.`
+    : `Create a test event on ${emailA}'s calendar and one on ${emailB}'s calendar, then wait up to 15 minutes. Then check each item below.`;
+
+  const items: string[] = [
+    ...plans.map(plan => {
+      const deployEmail = plan.deployIn === 'A' ? emailA : emailB;
+      const targetDesc = plan.targetCalendarId === 'primary'
+        ? `${deployEmail}'s calendar`
+        : plan.targetCalendarId;
+      const colorName = COLOR_NAMES[plan.colorId] ?? `color ${plan.colorId}`;
+      return `A mirror appeared on ${targetDesc} with prefix "${plan.mirrorPrefix}" in ${colorName} color.`;
+    }),
+    'I did not receive any calendar notifications for the mirror events.',
+  ];
+
+  return (
+    <div>
+      <p style={{ fontFamily: 'sans-serif', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '0.75rem' }}>
+        {instruction}
+      </p>
+      <div style={{ marginBottom: '1rem' }}>
+        {items.map((item, i) => (
+          <label
+            key={i}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.5rem',
+              marginBottom: '0.5rem',
+              cursor: 'pointer',
+              fontFamily: 'sans-serif',
+              fontSize: '0.9rem',
+              lineHeight: '1.5',
+              userSelect: 'none',
+            } as React.CSSProperties}
+          >
+            <input
+              type="checkbox"
+              checked={checked[i]}
+              onChange={() => toggle(i)}
+              style={{ marginTop: '0.2rem', flexShrink: 0 }}
+            />
+            <span style={{ textDecoration: checked[i] ? 'line-through' : 'none', color: checked[i] ? '#888' : 'inherit' }}>
+              {item}
+            </span>
+          </label>
+        ))}
+      </div>
+      {allDone && (
+        <div style={{
+          background: '#f0fdf4',
+          border: '1px solid #86efac',
+          borderRadius: '6px',
+          padding: '0.75rem 1rem',
+          fontFamily: 'sans-serif',
+          fontSize: '0.9rem',
+          color: '#166534',
+          marginBottom: '1rem',
+        }}>
+          All checks passed. Your sync is running. You can delete the test events.
+        </div>
+      )}
     </div>
   );
 }
@@ -332,6 +446,28 @@ function getPhase2Steps(config: WizardConfig, plans: DeploymentPlan[]): ExecuteS
         },
       ],
     },
+    {
+      title: 'Check your sync',
+      body: <VerificationStep plans={plans} config={config} />,
+      troubleshootItems: [
+        {
+          symptom: 'No mirror appeared after 15 minutes',
+          fix: 'Open the Apps Script editor → View → Executions. Look for errors. Confirm DRY_RUN is false and the calendar sharing was accepted.',
+        },
+        {
+          symptom: 'Mirror appeared with the wrong prefix or color',
+          fix: 'Go back to step 1 (Your accounts), correct the label or color, then return to step 5 to regenerate and re-paste the script.',
+        },
+        {
+          symptom: 'I received a calendar notification for the mirror event',
+          fix: 'Confirm you pasted the latest generated script — it sets reminders: useDefault: false on every mirror event. Re-paste if you used an older version.',
+        },
+        {
+          symptom: 'Mirrors stopped appearing after a few days',
+          fix: 'The time-based trigger may have been deleted. Open the Apps Script editor and run installTrigger again to reinstall the 15-minute schedule.',
+        },
+      ],
+    },
   ];
 }
 
@@ -342,6 +478,7 @@ const PHASE2_TITLES = [
   'Enable the Calendar API and paste the script',
   'Run the script and authorize',
   'Verify mirrors are appearing',
+  'Check your sync',
 ];
 const STEP_TITLES = [...PHASE1_TITLES, ...PHASE2_TITLES];
 
@@ -375,6 +512,18 @@ function planSummary(plan: DeploymentPlan, config: WizardConfig): string {
     ? plan.deployIn
     : plan.targetCalendarId === config.accountA.email ? 'A' : 'B';
   return `Deploy in Account ${plan.deployIn}${deployEmail ? ` (${deployEmail})` : ''} · reads from Account ${sourceAccount} · writes busy blocks to Account ${writesTo}'s calendar`;
+}
+
+function canAdvance(step: number, config: WizardConfig): boolean {
+  if (step === 0) {
+    return !!(
+      config.accountA.email.trim() &&
+      config.accountA.label.trim() &&
+      config.accountB.email.trim() &&
+      config.accountB.label.trim()
+    );
+  }
+  return true;
 }
 
 const LS_KEY = 'gcal-wizard';
@@ -455,10 +604,20 @@ export default function Home() {
 
   const plans = derive(config);
   const phase2Steps = getPhase2Steps(config, plans);
+  const ok = canAdvance(step, config);
 
   return (
     <main style={{ fontFamily: 'monospace', padding: '2rem', maxWidth: '960px', margin: '0 auto' }}>
       <h1 style={{ fontFamily: 'sans-serif', marginBottom: '0.25rem' }}>gcal-sync-wizard</h1>
+
+      {GITHUB_URL && (
+        <p style={{ fontFamily: 'sans-serif', fontSize: '0.8rem', color: '#555', marginBottom: '1rem', marginTop: 0 }}>
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer" style={{ color: '#1d4ed8' }}>
+            View source on GitHub
+          </a>
+          {' '}— review the script before running it.
+        </p>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.25rem' }}>
         <h2 style={{ fontFamily: 'sans-serif', fontSize: '1rem', margin: 0 }}>
@@ -493,8 +652,9 @@ export default function Home() {
           <section>
             <h3 style={{ fontFamily: 'sans-serif', fontSize: '1rem', marginBottom: '0.75rem' }}>Account A</h3>
             <div style={groupStyle}>
-              <label style={labelStyle}>Email</label>
+              <label htmlFor="accountA-email" style={labelStyle}>Email</label>
               <input
+                id="accountA-email"
                 type="text"
                 value={config.accountA.email}
                 onChange={e => setA({ email: e.target.value })}
@@ -503,8 +663,9 @@ export default function Home() {
               />
             </div>
             <div style={groupStyle}>
-              <label style={labelStyle}>Label (used as mirror prefix)</label>
+              <label htmlFor="accountA-label" style={labelStyle}>Label (used as mirror prefix)</label>
               <input
+                id="accountA-label"
                 type="text"
                 value={config.accountA.label}
                 onChange={e => setA({ label: e.target.value })}
@@ -514,19 +675,15 @@ export default function Home() {
             </div>
             <div style={groupStyle}>
               <label style={labelStyle}>Color of mirrors appearing on A</label>
-              <select
+              <ColorPicker
                 value={config.colorOnA}
-                onChange={e => setConfig(c => ({ ...c, colorOnA: Number(e.target.value) as ColorId }))}
-                style={fieldStyle}
-              >
-                {COLOR_IDS.map(id => (
-                  <option key={id} value={id}>{COLOR_NAMES[id]}</option>
-                ))}
-              </select>
+                onChange={id => setConfig(c => ({ ...c, colorOnA: id }))}
+              />
             </div>
             <div style={groupStyle}>
-              <label style={labelStyle}>Target calendar on A (blank = primary)</label>
+              <label htmlFor="accountA-targetCal" style={labelStyle}>Target calendar on A (blank = primary)</label>
               <input
+                id="accountA-targetCal"
                 type="text"
                 value={config.targetCalendarIdOnA}
                 onChange={e => setConfig(c => ({ ...c, targetCalendarIdOnA: e.target.value }))}
@@ -545,8 +702,9 @@ export default function Home() {
           <section>
             <h3 style={{ fontFamily: 'sans-serif', fontSize: '1rem', marginBottom: '0.75rem' }}>Account B</h3>
             <div style={groupStyle}>
-              <label style={labelStyle}>Email</label>
+              <label htmlFor="accountB-email" style={labelStyle}>Email</label>
               <input
+                id="accountB-email"
                 type="text"
                 value={config.accountB.email}
                 onChange={e => setB({ email: e.target.value })}
@@ -555,8 +713,9 @@ export default function Home() {
               />
             </div>
             <div style={groupStyle}>
-              <label style={labelStyle}>Label (used as mirror prefix)</label>
+              <label htmlFor="accountB-label" style={labelStyle}>Label (used as mirror prefix)</label>
               <input
+                id="accountB-label"
                 type="text"
                 value={config.accountB.label}
                 onChange={e => setB({ label: e.target.value })}
@@ -566,19 +725,15 @@ export default function Home() {
             </div>
             <div style={groupStyle}>
               <label style={labelStyle}>Color of mirrors appearing on B</label>
-              <select
+              <ColorPicker
                 value={config.colorOnB}
-                onChange={e => setConfig(c => ({ ...c, colorOnB: Number(e.target.value) as ColorId }))}
-                style={fieldStyle}
-              >
-                {COLOR_IDS.map(id => (
-                  <option key={id} value={id}>{COLOR_NAMES[id]}</option>
-                ))}
-              </select>
+                onChange={id => setConfig(c => ({ ...c, colorOnB: id }))}
+              />
             </div>
             <div style={groupStyle}>
-              <label style={labelStyle}>Target calendar on B (blank = primary)</label>
+              <label htmlFor="accountB-targetCal" style={labelStyle}>Target calendar on B (blank = primary)</label>
               <input
+                id="accountB-targetCal"
                 type="text"
                 value={config.targetCalendarIdOnB}
                 onChange={e => setConfig(c => ({ ...c, targetCalendarIdOnB: e.target.value }))}
@@ -603,8 +758,9 @@ export default function Home() {
         <>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
           <div style={groupStyle}>
-            <label style={labelStyle}>Lookahead days</label>
+            <label htmlFor="lookahead" style={labelStyle}>Lookahead days</label>
             <input
+              id="lookahead"
               type="number"
               min={1}
               max={365}
@@ -617,8 +773,9 @@ export default function Home() {
             />
           </div>
           <div style={groupStyle}>
-            <label style={labelStyle}>Direction</label>
+            <label htmlFor="direction" style={labelStyle}>Direction</label>
             <select
+              id="direction"
               value={config.direction}
               onChange={e => {
                 const dir = e.target.value as WizardConfig['direction'];
@@ -637,8 +794,9 @@ export default function Home() {
           </div>
           {config.direction !== 'bidirectional' && (
             <div style={groupStyle}>
-              <label style={labelStyle}>Which account has Apps Script blocked?</label>
+              <label htmlFor="restricted" style={labelStyle}>Which account has Apps Script blocked?</label>
               <select
+                id="restricted"
                 value={config.restrictedAccount}
                 onChange={e => setConfig(c => ({ ...c, restrictedAccount: e.target.value as WizardConfig['restrictedAccount'] }))}
                 style={fieldStyle}
@@ -656,6 +814,19 @@ export default function Home() {
 
       {step === 2 && (
         <>
+          <p style={{
+            fontFamily: 'sans-serif',
+            fontSize: '0.85rem',
+            color: '#555',
+            borderLeft: '3px solid #e5e7eb',
+            paddingLeft: '0.75rem',
+            marginBottom: '1rem',
+          }}>
+            The code below only reads and writes calendar events within your own Google
+            account — no data leaves Google&apos;s servers.{' '}
+            If you work in a regulated industry, share this with your security team before
+            deploying.
+          </p>
           {plans.map((plan, i) => (
             <div key={plan.scriptId} style={{ marginBottom: '2rem' }}>
               <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
@@ -672,7 +843,7 @@ export default function Home() {
         <ExecuteStep {...phase2Steps[step - PHASE1_TITLES.length]} />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
         <button
           onClick={() => setStep(s => s - 1)}
           disabled={step === 0}
@@ -691,21 +862,30 @@ export default function Home() {
           ← Back
         </button>
         {step < STEP_TITLES.length - 1 && (
-          <button
-            onClick={() => setStep(s => s + 1)}
-            style={{
-              padding: '0.5rem 1rem',
-              cursor: 'pointer',
-              background: '#1d4ed8',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              fontFamily: 'sans-serif',
-              fontSize: '0.85rem',
-            }}
-          >
-            Next →
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {!ok && (
+              <span style={{ fontFamily: 'sans-serif', fontSize: '0.8rem', color: '#b45309' }}>
+                Enter both email addresses and labels to continue.
+              </span>
+            )}
+            <button
+              onClick={() => { if (ok) setStep(s => s + 1); }}
+              disabled={!ok}
+              style={{
+                padding: '0.5rem 1rem',
+                cursor: ok ? 'pointer' : 'default',
+                opacity: ok ? 1 : 0.4,
+                background: '#1d4ed8',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                fontFamily: 'sans-serif',
+                fontSize: '0.85rem',
+              }}
+            >
+              Next →
+            </button>
+          </div>
         )}
       </div>
     </main>

@@ -24,7 +24,9 @@ telemetry.
 
 ## Current state
 
-Build order steps 1–9 complete. 8-step wizard (3 Phase 1 config steps + 5 Phase 2 execute steps) with full restricted-account branching, localStorage persistence, personalized instruction copy, generic execute-step component, and troubleshooting accordions on every step:
+Build complete (all 11 steps). 9-step wizard (3 Phase 1 config steps + 5 Phase 2 execute steps + 1 Phase 3 verification step) with full restricted-account branching, localStorage persistence, personalized instruction copy, color swatch picker, form validation, disclaimer copy, and troubleshooting accordions on every step.
+
+Key files:
 
 - `app/_lib/config/types.ts` — `ColorId`, `WizardConfig`, `DeploymentPlan`, `GeneratedScript`
 - `app/_lib/config/defaults.ts` — `DEFAULT_CONFIG` (colorOnA=7/Peacock, colorOnB=2/Sage, 30 days, bidirectional)
@@ -33,14 +35,13 @@ Build order steps 1–9 complete. 8-step wizard (3 Phase 1 config steps + 5 Phas
 - `app/_lib/script/generate.ts` — `generate(plan: DeploymentPlan): string`
 - `app/_lib/script/colors.ts` — `COLOR_NAMES` lookup table (colorId → human name)
 - `app/components/ExecuteStep.tsx` — `ExecuteStep` + `TroubleshootAccordion` (exported) components; `ExecuteStepDef` / `TroubleshootItem` types
-- `app/page.tsx` — wizard; Phase 1 steps 0–2 each have `TroubleshootAccordion` with 3 items; Phase 2 steps 3–7 use `ExecuteStep` with personalized JSX bodies via `getPhase2Steps`; `CopyBlock` component; localStorage under key `gcal-wizard`; "Start over" button
+- `app/page.tsx` — entire wizard UI; contains `CopyBlock`, `ColorPicker`, `VerificationStep` components; `getPhase2Steps(config, plans)` returns all 6 Phase 2+3 step definitions; `canAdvance(step, config)` guards the Next button; localStorage under key `gcal-wizard`; `GITHUB_URL` constant (empty — fill in before deploying)
 - `app/_lib/config/derive.test.ts` — 12 Vitest tests covering all direction × restriction combos + custom target IDs + snapshot
 - `app/_lib/script/generate.test.ts` — snapshot + config injection assertions
 
 Test framework: Vitest (`npm test`). All 12 tests pass.
 
-The generated script has been pasted into a real Apps Script project and
-confirmed to run in dry-run mode. Next step: Phase 3 diagnostic flow (build order step 10).
+One thing left before deploying: set `GITHUB_URL` in `app/page.tsx` to the public repo URL so the header trust link renders.
 
 ## Reference: current working Apps Script
 
@@ -242,14 +243,14 @@ calendars. The site needs to:
 1. ✅ Walking skeleton: `template.ts` + `generate.ts` + hard-coded `DeploymentPlan` in `page.tsx`
 2. ✅ Real form for Phase 1 step 1 (emails, labels, colors, lookahead). `useState`, no persistence.
 3. ✅ `derive()` + render `DeploymentPlan[]` summary.
-4. Bidirectional + restricted-account branching in `derive()`. Snapshot tests.
+4. ✅ Bidirectional + restricted-account branching in `derive()`. Snapshot tests.
 5. ✅ Multi-step shell: Phase 1 only, prev/next.
 6. ✅ localStorage persistence + "Start over" button.
 7. ✅ Phase 2 step shell: generic execute-step component.
 8. ✅ Personalized instruction copy per Phase 2 step.
 9. ✅ Troubleshooting accordions per step.
-10. Phase 3 diagnostic flow.
-11. Polish: validation, color picker UI, GitHub links, disclaimers, a11y.
+10. ✅ Phase 3 diagnostic flow.
+11. ✅ Polish: validation, color picker UI, GitHub links, disclaimers, a11y.
 
 ## Notes for Claude Code
 
