@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WizardConfig, DeploymentPlan, ColorId } from './_lib/config/types';
 import { DEFAULT_CONFIG } from './_lib/config/defaults';
 import { derive } from './_lib/config/derive';
@@ -43,10 +43,36 @@ function planSummary(plan: DeploymentPlan, config: WizardConfig): string {
   return `Deploy in Account ${plan.deployIn}${deployEmail ? ` (${deployEmail})` : ''} · reads from Account ${sourceAccount} · writes busy blocks to Account ${writesTo}'s calendar`;
 }
 
+const LS_KEY = 'gcal-wizard';
+
 export default function Home() {
   const [config, setConfig] = useState<WizardConfig>(DEFAULT_CONFIG);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved.config) setConfig(saved.config);
+        if (typeof saved.step === 'number') setStep(saved.step);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ config, step }));
+    } catch { /* ignore */ }
+  }, [config, step]);
+
+  function handleStartOver() {
+    if (!window.confirm('Clear all entered data and start over?')) return;
+    localStorage.removeItem(LS_KEY);
+    setConfig(DEFAULT_CONFIG);
+    setStep(0);
+  }
 
   function setA(patch: Partial<WizardConfig['accountA']>) {
     setConfig(c => ({ ...c, accountA: { ...c.accountA, ...patch } }));
@@ -72,9 +98,26 @@ export default function Home() {
         <h2 style={{ fontFamily: 'sans-serif', fontSize: '1rem', margin: 0 }}>
           {STEP_TITLES[step]}
         </h2>
-        <span style={{ fontFamily: 'sans-serif', fontSize: '0.8rem', color: '#888' }}>
-          Step {step + 1} of {STEP_TITLES.length}
-        </span>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'baseline' }}>
+          <span style={{ fontFamily: 'sans-serif', fontSize: '0.8rem', color: '#888' }}>
+            Step {step + 1} of {STEP_TITLES.length}
+          </span>
+          <button
+            onClick={handleStartOver}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#888',
+              fontFamily: 'sans-serif',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              padding: 0,
+              textDecoration: 'underline',
+            }}
+          >
+            Start over
+          </button>
+        </div>
       </div>
 
       {step === 0 && (

@@ -24,7 +24,7 @@ telemetry.
 
 ## Current state
 
-Build order steps 1–5 complete. 3-step wizard shell with full restricted-account branching:
+Build order steps 1–6 complete. 3-step wizard shell with full restricted-account branching and localStorage persistence:
 
 - `app/_lib/config/types.ts` — `ColorId`, `WizardConfig`, `DeploymentPlan`, `GeneratedScript`
 - `app/_lib/config/defaults.ts` — `DEFAULT_CONFIG` (colorOnA=7/Peacock, colorOnB=2/Sage, 30 days, bidirectional)
@@ -32,14 +32,14 @@ Build order steps 1–5 complete. 3-step wizard shell with full restricted-accou
 - `app/_lib/script/template.ts` — `SCRIPT_BODY` (reference script body, CONFIG stripped)
 - `app/_lib/script/generate.ts` — `generate(plan: DeploymentPlan): string`
 - `app/_lib/script/colors.ts` — `COLOR_NAMES` lookup table (colorId → human name)
-- `app/page.tsx` — 3-step wizard (`useState<WizardConfig>` + `step` state); Step 1: accounts, Step 2: sync settings, Step 3: generated scripts with copy buttons + `<pre>`
+- `app/page.tsx` — 3-step wizard (`useState<WizardConfig>` + `step` state); localStorage persistence under key `gcal-wizard`; "Start over" button (confirm → clears storage + resets to defaults); Step 1: accounts, Step 2: sync settings, Step 3: generated scripts with copy buttons + `<pre>`
 - `app/_lib/config/derive.test.ts` — 8 Vitest tests covering all direction × restriction combos + snapshot
 - `app/_lib/script/generate.test.ts` — snapshot + config injection assertions
 
 Test framework: Vitest (`npm test`). All 10 tests pass.
 
 The generated script has been pasted into a real Apps Script project and
-confirmed to run in dry-run mode. Next step: localStorage persistence + "Start over" button (build order step 6).
+confirmed to run in dry-run mode. Next step: Phase 2 step shell — generic execute-step component (build order step 7).
 
 ## Reference: current working Apps Script
 
@@ -243,7 +243,7 @@ calendars. The site needs to:
 3. `derive()` + render `DeploymentPlan[]` summary.
 4. Bidirectional + restricted-account branching in `derive()`. Snapshot tests.
 5. ✅ Multi-step shell: Phase 1 only, prev/next.
-6. localStorage persistence + "Start over" button.
+6. ✅ localStorage persistence + "Start over" button.
 7. Phase 2 step shell: generic execute-step component.
 8. Personalized instruction copy per Phase 2 step.
 9. Troubleshooting accordions per step.
