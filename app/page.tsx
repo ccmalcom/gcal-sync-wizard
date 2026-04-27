@@ -12,6 +12,7 @@ const COLOR_IDS = Object.keys(COLOR_NAMES).map(Number) as ColorId[];
 
 function CopyBlock({ content, label }: { content: string; label?: string }) {
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   function handleCopy() {
     navigator.clipboard.writeText(content).then(() => {
       setCopied(true);
@@ -25,32 +26,50 @@ function CopyBlock({ content, label }: { content: string; label?: string }) {
           {label}
         </p>
       )}
-      <button
-        onClick={handleCopy}
-        style={{
-          marginBottom: '0.5rem',
-          padding: '0.5rem 1rem',
-          cursor: 'pointer',
-          background: copied ? '#16a34a' : '#1d4ed8',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          fontFamily: 'sans-serif',
-          fontSize: '0.85rem',
-        }}
-      >
-        {copied ? 'Copied!' : 'Copy script'}
-      </button>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <button
+          onClick={handleCopy}
+          style={{
+            padding: '0.5rem 1rem',
+            cursor: 'pointer',
+            background: copied ? '#16a34a' : '#1d4ed8',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            fontFamily: 'sans-serif',
+            fontSize: '0.85rem',
+          }}
+        >
+          {copied ? 'Copied!' : 'Copy script'}
+        </button>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            padding: '0.5rem 1rem',
+            cursor: 'pointer',
+            background: 'none',
+            color: '#555',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            fontFamily: 'sans-serif',
+            fontSize: '0.85rem',
+          }}
+        >
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
+      </div>
       <pre
         style={{
           background: '#1e1e1e',
           color: '#d4d4d4',
           padding: '1rem',
           overflowX: 'auto' as const,
+          overflowY: 'auto' as const,
           fontSize: '0.8rem',
           lineHeight: '1.5',
           borderRadius: '4px',
           whiteSpace: 'pre' as const,
+          maxHeight: expanded ? 'none' : '22vh',
         }}
       >
         {content}
@@ -412,7 +431,6 @@ function loadSaved() {
 
 export default function Home() {
   const [config, setConfig] = useState<WizardConfig>(() => loadSaved()?.config ?? DEFAULT_CONFIG);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [step, setStep] = useState<number>(() => loadSaved()?.step ?? 0);
 
   useEffect(() => {
@@ -437,13 +455,6 @@ export default function Home() {
 
   const plans = derive(config);
   const phase2Steps = getPhase2Steps(config, plans);
-
-  function handleCopy(plan: DeploymentPlan) {
-    navigator.clipboard.writeText(generate(plan)).then(() => {
-      setCopiedId(plan.scriptId);
-      setTimeout(() => setCopiedId(null), 2000);
-    });
-  }
 
   return (
     <main style={{ fontFamily: 'monospace', padding: '2rem', maxWidth: '960px', margin: '0 auto' }}>
@@ -650,34 +661,7 @@ export default function Home() {
               <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
                 <strong>Script {i + 1}</strong> — {planSummary(plan, config)}
               </p>
-              <button
-                onClick={() => handleCopy(plan)}
-                style={{
-                  marginBottom: '0.5rem',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                  background: copiedId === plan.scriptId ? '#16a34a' : '#1d4ed8',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontFamily: 'sans-serif',
-                  fontSize: '0.85rem',
-                }}
-              >
-                {copiedId === plan.scriptId ? 'Copied!' : 'Copy script'}
-              </button>
-              <pre style={{
-                background: '#1e1e1e',
-                color: '#d4d4d4',
-                padding: '1rem',
-                overflowX: 'auto',
-                fontSize: '0.8rem',
-                lineHeight: '1.5',
-                borderRadius: '4px',
-                whiteSpace: 'pre',
-              }}>
-                {generate(plan)}
-              </pre>
+              <CopyBlock content={generate(plan)} />
             </div>
           ))}
           <TroubleshootAccordion items={STEP2_TROUBLESHOOT} />
