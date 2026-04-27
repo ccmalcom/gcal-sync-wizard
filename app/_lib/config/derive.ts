@@ -3,22 +3,28 @@ import { WizardConfig, DeploymentPlan } from './types';
 function redirectIfRestricted(
   plan: DeploymentPlan,
   restrictedAccount: WizardConfig['restrictedAccount'],
-  emails: { A: string; B: string }
+  emails: { A: string; B: string },
+  customTargets: { A: string; B: string }
 ): DeploymentPlan {
   if (restrictedAccount === 'none' || plan.deployIn !== restrictedAccount) return plan;
   const other = plan.deployIn === 'A' ? 'B' : 'A';
-  return { ...plan, deployIn: other, targetCalendarId: emails[plan.deployIn] };
+  const targetId = customTargets[plan.deployIn] || emails[plan.deployIn];
+  return { ...plan, deployIn: other, targetCalendarId: targetId };
 }
 
 export function derive(config: WizardConfig): [DeploymentPlan, ...DeploymentPlan[]] {
-  const { accountA, accountB, colorOnA, colorOnB, lookaheadDays, direction, restrictedAccount } = config;
+  const {
+    accountA, accountB, colorOnA, colorOnB,
+    targetCalendarIdOnA, targetCalendarIdOnB,
+    lookaheadDays, direction, restrictedAccount,
+  } = config;
 
   const planA: DeploymentPlan = {
     scriptId: 'mirrors-on-A',
     deployIn: 'A',
     sourceCalendarId: accountB.email,
     sourceOwnerEmail: accountB.email,
-    targetCalendarId: 'primary',
+    targetCalendarId: targetCalendarIdOnA || 'primary',
     mirrorPrefix: accountA.label,
     colorId: colorOnA,
     lookaheadDays,
@@ -29,13 +35,14 @@ export function derive(config: WizardConfig): [DeploymentPlan, ...DeploymentPlan
     deployIn: 'B',
     sourceCalendarId: accountA.email,
     sourceOwnerEmail: accountA.email,
-    targetCalendarId: 'primary',
+    targetCalendarId: targetCalendarIdOnB || 'primary',
     mirrorPrefix: accountB.label,
     colorId: colorOnB,
     lookaheadDays,
   };
 
   const emails = { A: accountA.email, B: accountB.email };
+  const customTargets = { A: targetCalendarIdOnA, B: targetCalendarIdOnB };
 
   const rawPlans: DeploymentPlan[] =
     direction === 'bidirectional' ? [planA, planB] :
@@ -47,6 +54,6 @@ export function derive(config: WizardConfig): [DeploymentPlan, ...DeploymentPlan
     `derive() produced no plans for direction="${config.direction}". This is a bug.`
   );
 
-  const plans = rawPlans.map(p => redirectIfRestricted(p, restrictedAccount, emails));
+  const plans = rawPlans.map(p => redirectIfRestricted(p, restrictedAccount, emails, customTargets));
   return plans as [DeploymentPlan, ...DeploymentPlan[]];
 }

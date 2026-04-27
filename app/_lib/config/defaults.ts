@@ -5,6 +5,8 @@ export const DEFAULT_CONFIG: WizardConfig = {
   accountB: { email: '', label: '' },
   colorOnA: 7,
   colorOnB: 2,
+  targetCalendarIdOnA: '',
+  targetCalendarIdOnB: '',
   lookaheadDays: 30,
   direction: 'bidirectional',
   restrictedAccount: 'none',

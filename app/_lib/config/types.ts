@@ -5,6 +5,8 @@ export type WizardConfig = {
   accountB: { email: string; label: string };
   colorOnA: ColorId;
   colorOnB: ColorId;
+  targetCalendarIdOnA: string; // '' means 'primary'
+  targetCalendarIdOnB: string; // '' means 'primary'
   lookaheadDays: number;
   direction: 'bidirectional' | 'a-to-b-only' | 'b-to-a-only';
   restrictedAccount: 'A' | 'B' | 'none';

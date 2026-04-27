@@ -10,73 +10,321 @@ import { ExecuteStep, ExecuteStepDef } from './components/ExecuteStep';
 
 const COLOR_IDS = Object.keys(COLOR_NAMES).map(Number) as ColorId[];
 
-const PHASE2_STEPS: ExecuteStepDef[] = [
-  {
-    title: 'Share your calendars',
-    body: 'Personalized sharing instructions will appear here in Step 8.',
-    troubleshootItems: [
-      {
-        symptom: 'Sharing option is greyed out or unavailable',
-        fix: 'Your Google Workspace admin may restrict external calendar sharing. Ask your IT admin to allow "Share with specific people" for your account.',
-      },
-      {
-        symptom: 'The other person says they never received the sharing invitation',
-        fix: 'Try removing the share and re-adding it. The invitation email can sometimes be delayed or land in spam.',
-      },
-    ],
-  },
-  {
-    title: 'Create the Apps Script project',
-    body: 'Personalized project creation instructions will appear here in Step 8.',
-    troubleshootItems: [
-      {
-        symptom: 'script.google.com shows an error or redirects away',
-        fix: 'Your organization may block Google Apps Script. Go back to "Sync settings" and set the restricted account — the wizard will redirect that script to deploy in your other account instead.',
-      },
-    ],
-  },
-  {
-    title: 'Enable the Calendar API and paste the script',
-    body: 'Personalized paste instructions will appear here in Step 8.',
-    troubleshootItems: [
-      {
-        symptom: "Can't find the Calendar API service",
-        fix: 'In the Apps Script editor, go to Services (+ icon in the left sidebar), scroll to "Google Calendar API", and click Add.',
-      },
-    ],
-  },
-  {
-    title: 'Run the script and authorize',
-    body: 'Personalized run instructions will appear here in Step 8.',
-    troubleshootItems: [
-      {
-        symptom: '"This app isn\'t verified" warning',
-        fix: 'This is expected — the script is running under your own account, not a published app. Click "Advanced" → "Go to [project name] (unsafe)" to proceed.',
-      },
-      {
-        symptom: 'Authorization dialog never appears',
-        fix: 'Make sure you are running syncCalendars (not installTrigger) for the first run. Check that pop-ups are allowed for script.google.com in your browser.',
-      },
-    ],
-  },
-  {
-    title: 'Verify mirrors are appearing',
-    body: 'Personalized verification instructions will appear here in Step 8.',
-    troubleshootItems: [
-      {
-        symptom: 'No mirrors appeared after running',
-        fix: 'Check the Apps Script execution log (View → Executions) for errors. Make sure DRY_RUN is false and the calendar share was accepted.',
-      },
-      {
-        symptom: 'Mirrors appeared but have the wrong color or prefix',
-        fix: 'Go back to step 1 ("Your accounts") and double-check the label and color settings, then regenerate and re-paste the script.',
-      },
-    ],
-  },
-];
+function CopyBlock({ content, label }: { content: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <div style={{ marginBottom: '1rem' }}>
+      {label && (
+        <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', margin: '0 0 0.5rem' }}>
+          {label}
+        </p>
+      )}
+      <button
+        onClick={handleCopy}
+        style={{
+          marginBottom: '0.5rem',
+          padding: '0.5rem 1rem',
+          cursor: 'pointer',
+          background: copied ? '#16a34a' : '#1d4ed8',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '4px',
+          fontFamily: 'sans-serif',
+          fontSize: '0.85rem',
+        }}
+      >
+        {copied ? 'Copied!' : 'Copy script'}
+      </button>
+      <pre
+        style={{
+          background: '#1e1e1e',
+          color: '#d4d4d4',
+          padding: '1rem',
+          overflowX: 'auto' as const,
+          fontSize: '0.8rem',
+          lineHeight: '1.5',
+          borderRadius: '4px',
+          whiteSpace: 'pre' as const,
+        }}
+      >
+        {content}
+      </pre>
+    </div>
+  );
+}
+
+function getPhase2Steps(config: WizardConfig, plans: DeploymentPlan[]): ExecuteStepDef[] {
+  const emailA = config.accountA.email || 'Account A email';
+  const emailB = config.accountB.email || 'Account B email';
+
+  const shares = new Map<string, { from: string; to: string; permission: 'see' | 'edit' }>();
+  for (const plan of plans) {
+    const deployEmail = plan.deployIn === 'A' ? emailA : emailB;
+    if (plan.sourceOwnerEmail !== deployEmail) {
+      const key = `${plan.sourceOwnerEmail}→${deployEmail}`;
+      if (!shares.has(key)) {
+        shares.set(key, { from: plan.sourceOwnerEmail, to: deployEmail, permission: 'see' });
+      }
+    }
+    if (plan.targetCalendarId !== 'primary') {
+      const key = `${plan.targetCalendarId}→${deployEmail}`;
+      shares.set(key, { from: plan.targetCalendarId, to: deployEmail, permission: 'edit' });
+    }
+  }
+  const shareList = [...shares.values()];
+
+  const liSt = { marginBottom: '0.75rem', fontFamily: 'sans-serif', fontSize: '0.9rem', lineHeight: '1.6' };
+  const codeSt = { fontFamily: 'monospace', fontSize: '0.85em', background: '#f3f4f6', padding: '0.1em 0.3em', borderRadius: '3px' };
+
+  return [
+    {
+      title: 'Share your calendars',
+      body: (
+        <div>
+          <p style={{ fontFamily: 'sans-serif', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '0.75rem' }}>
+            Open Google Calendar for each account below and share as instructed:
+          </p>
+          <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
+            {shareList.map(({ from, to, permission }, i) => (
+              <li key={i} style={liSt}>
+                Sign in to <code style={codeSt}>{from}</code> → open{' '}
+                <strong>Google Calendar Settings</strong> → under <strong>My calendars</strong>,
+                click your primary calendar → <strong>Share with specific people or groups</strong>.
+                <br />
+                Add <code style={codeSt}>{to}</code> with permission{' '}
+                <strong>&ldquo;{permission === 'edit' ? 'Make changes to events' : 'See all event details'}&rdquo;</strong>.
+              </li>
+            ))}
+          </ol>
+          <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', color: '#555', marginTop: '0.75rem', marginBottom: 0 }}>
+            Wait a few minutes for sharing to propagate before moving on.
+          </p>
+        </div>
+      ),
+      troubleshootItems: [
+        {
+          symptom: 'Sharing option is greyed out or unavailable',
+          fix: 'Your Google Workspace admin may restrict external calendar sharing. Ask your IT admin to allow "Share with specific people" for your account.',
+        },
+        {
+          symptom: 'The other person says they never received the sharing invitation',
+          fix: 'Try removing the share and re-adding it. The invitation email can sometimes be delayed or land in spam.',
+        },
+      ],
+    },
+    {
+      title: 'Create the Apps Script project',
+      body: (
+        <div>
+          {plans.map((plan, i) => {
+            const deployEmail = plan.deployIn === 'A' ? emailA : emailB;
+            return (
+              <div key={plan.scriptId} style={{ marginBottom: plans.length > 1 ? '1.25rem' : 0 }}>
+                {plans.length > 1 && (
+                  <p style={{ fontFamily: 'sans-serif', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Script {i + 1}
+                  </p>
+                )}
+                <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
+                  <li style={liSt}>
+                    Go to{' '}
+                    <a href="https://script.google.com" target="_blank" rel="noreferrer" style={{ color: '#1d4ed8' }}>
+                      script.google.com
+                    </a>{' '}
+                    — make sure you are signed in as <code style={codeSt}>{deployEmail}</code>.
+                  </li>
+                  <li style={liSt}>Click <strong>New project</strong>.</li>
+                  <li style={liSt}>
+                    Click <strong>Untitled project</strong> at the top and rename it to{' '}
+                    <strong>Busy Mirror</strong>.
+                  </li>
+                </ol>
+              </div>
+            );
+          })}
+        </div>
+      ),
+      troubleshootItems: [
+        {
+          symptom: 'script.google.com shows an error or redirects away',
+          fix: 'Your organization may block Google Apps Script. Go back to "Sync settings" and set the restricted account — the wizard will redirect that script to deploy in your other account instead.',
+        },
+      ],
+    },
+    {
+      title: 'Enable the Calendar API and paste the script',
+      body: (
+        <div>
+          {plans.map((plan, i) => {
+            const deployEmail = plan.deployIn === 'A' ? emailA : emailB;
+            return (
+              <div key={plan.scriptId} style={{ marginBottom: '1.5rem' }}>
+                {plans.length > 1 && (
+                  <p style={{ fontFamily: 'sans-serif', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Script {i + 1} — deployed as <code style={codeSt}>{deployEmail}</code>
+                  </p>
+                )}
+                <ol style={{ paddingLeft: '1.25rem', margin: '0 0 0.75rem' }}>
+                  <li style={liSt}>
+                    In the left sidebar, click the <strong>+</strong> next to <strong>Services</strong>.
+                    Find <strong>Google Calendar API</strong> and click <strong>Add</strong>.
+                  </li>
+                  <li style={liSt}>
+                    Click <strong>Code.gs</strong> in the left sidebar. Select all existing code (
+                    <kbd>Ctrl+A</kbd> / <kbd>Cmd+A</kbd>) and delete it.
+                  </li>
+                  <li style={liSt}>
+                    Paste the script below, then save (<kbd>Ctrl+S</kbd> / <kbd>Cmd+S</kbd>):
+                  </li>
+                </ol>
+                <CopyBlock
+                  content={generate(plan)}
+                  label={plans.length > 1 ? `Script ${i + 1}` : undefined}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ),
+      troubleshootItems: [
+        {
+          symptom: "Can't find the Calendar API service",
+          fix: 'In the Apps Script editor, go to Services (+ icon in the left sidebar), scroll to "Google Calendar API", and click Add.',
+        },
+      ],
+    },
+    {
+      title: 'Run the script and authorize',
+      body: (
+        <div>
+          {plans.map((plan, i) => {
+            const deployEmail = plan.deployIn === 'A' ? emailA : emailB;
+            return (
+              <div key={plan.scriptId} style={{ marginBottom: plans.length > 1 ? '1.25rem' : 0 }}>
+                {plans.length > 1 && (
+                  <p style={{ fontFamily: 'sans-serif', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Script {i + 1} — signed in as <code style={codeSt}>{deployEmail}</code>
+                  </p>
+                )}
+                <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
+                  <li style={liSt}>
+                    At the top of the editor, select <strong>syncCalendars</strong> from the
+                    function dropdown (to the left of the Run button).
+                  </li>
+                  <li style={liSt}>Click <strong>Run</strong> (▶).</li>
+                  <li style={liSt}>
+                    If an authorization dialog appears:
+                    <ul style={{ paddingLeft: '1.25rem', marginTop: '0.25rem' }}>
+                      <li style={{ ...liSt, marginBottom: '0.25rem' }}>
+                        Click <strong>Review permissions</strong> and select{' '}
+                        <code style={codeSt}>{deployEmail}</code>.
+                      </li>
+                      <li style={{ ...liSt, marginBottom: '0.25rem' }}>
+                        Click <strong>Advanced</strong> →{' '}
+                        <strong>Go to [project name] (unsafe)</strong>.
+                      </li>
+                      <li style={{ ...liSt, marginBottom: 0 }}>Click <strong>Allow</strong>.</li>
+                    </ul>
+                  </li>
+                  <li style={liSt}>
+                    After the run completes, click <strong>View → Executions</strong> and confirm
+                    you see a &ldquo;Dry run complete&rdquo; message (no errors).
+                  </li>
+                </ol>
+              </div>
+            );
+          })}
+        </div>
+      ),
+      troubleshootItems: [
+        {
+          symptom: '"This app isn\'t verified" warning',
+          fix: 'This is expected — the script is running under your own account, not a published app. Click "Advanced" → "Go to [project name] (unsafe)" to proceed.',
+        },
+        {
+          symptom: 'Authorization dialog never appears',
+          fix: 'Make sure you are running syncCalendars (not installTrigger) for the first run. Check that pop-ups are allowed for script.google.com in your browser.',
+        },
+      ],
+    },
+    {
+      title: 'Verify mirrors are appearing',
+      body: (
+        <div>
+          <p style={{ fontFamily: 'sans-serif', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '0.75rem' }}>
+            First confirm the dry-run output looks correct, then flip{' '}
+            <code style={codeSt}>DRY_RUN</code> to go live and install the trigger.
+          </p>
+          {plans.map((plan, i) => {
+            const deployEmail = plan.deployIn === 'A' ? emailA : emailB;
+            const targetDesc = plan.targetCalendarId === 'primary'
+              ? `${deployEmail}'s calendar`
+              : plan.targetCalendarId;
+            const colorName = COLOR_NAMES[plan.colorId] ?? `color ${plan.colorId}`;
+            return (
+              <div key={plan.scriptId} style={{ marginBottom: '1.25rem' }}>
+                {plans.length > 1 && (
+                  <p style={{ fontFamily: 'sans-serif', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Script {i + 1}
+                  </p>
+                )}
+                <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
+                  <li style={liSt}>
+                    Open the Apps Script editor for this script (signed in as{' '}
+                    <code style={codeSt}>{deployEmail}</code>).
+                  </li>
+                  <li style={liSt}>
+                    Find <code style={codeSt}>DRY_RUN = true</code> and change it to{' '}
+                    <code style={codeSt}>DRY_RUN = false</code>. Save (<kbd>Ctrl+S</kbd> / <kbd>Cmd+S</kbd>).
+                  </li>
+                  <li style={liSt}>
+                    Select <strong>syncCalendars</strong> and click <strong>Run</strong> again.
+                  </li>
+                  <li style={liSt}>
+                    Open Google Calendar as <code style={codeSt}>{deployEmail}</code> and check{' '}
+                    <strong>{targetDesc}</strong> for events prefixed{' '}
+                    <strong>{plan.mirrorPrefix}</strong> in <strong>{colorName}</strong> color.
+                  </li>
+                  <li style={liSt}>
+                    Once mirrors look correct, select <strong>installTrigger</strong> from the
+                    dropdown and click <strong>Run</strong> — this schedules the 15-minute
+                    automatic sync.
+                  </li>
+                </ol>
+              </div>
+            );
+          })}
+        </div>
+      ),
+      troubleshootItems: [
+        {
+          symptom: 'No mirrors appeared after running',
+          fix: 'Check the Apps Script execution log (View → Executions) for errors. Make sure DRY_RUN is false and the calendar share was accepted.',
+        },
+        {
+          symptom: 'Mirrors appeared but have the wrong color or prefix',
+          fix: 'Go back to step 1 ("Your accounts") and double-check the label and color settings, then regenerate and re-paste the script.',
+        },
+      ],
+    },
+  ];
+}
 
 const PHASE1_TITLES = ['Your accounts', 'Sync settings', 'Your scripts'];
-const STEP_TITLES = [...PHASE1_TITLES, ...PHASE2_STEPS.map(s => s.title)];
+const PHASE2_TITLES = [
+  'Share your calendars',
+  'Create the Apps Script project',
+  'Enable the Calendar API and paste the script',
+  'Run the script and authorize',
+  'Verify mirrors are appearing',
+];
+const STEP_TITLES = [...PHASE1_TITLES, ...PHASE2_TITLES];
 
 const fieldStyle = {
   display: 'block',
@@ -143,6 +391,7 @@ export default function Home() {
   }
 
   const plans = derive(config);
+  const phase2Steps = getPhase2Steps(config, plans);
 
   function handleCopy(plan: DeploymentPlan) {
     navigator.clipboard.writeText(generate(plan)).then(() => {
@@ -218,6 +467,22 @@ export default function Home() {
                 ))}
               </select>
             </div>
+            <div style={groupStyle}>
+              <label style={labelStyle}>Target calendar on A (blank = primary)</label>
+              <input
+                type="text"
+                value={config.targetCalendarIdOnA}
+                onChange={e => setConfig(c => ({ ...c, targetCalendarIdOnA: e.target.value }))}
+                placeholder="Leave blank to use Account A's main calendar"
+                style={fieldStyle}
+              />
+              <p style={{ fontFamily: 'sans-serif', fontSize: '0.75rem', color: '#666', margin: '0.3rem 0 0', lineHeight: '1.4' }}>
+                <strong>Blank (recommended):</strong> mirrors land on A&apos;s main calendar, visible by default.{' '}
+                <strong>Custom ID:</strong> paste a specific calendar&apos;s ID (e.g. a dedicated &ldquo;Busy Blocks&rdquo; calendar)
+                to keep mirrors separate — useful if you don&apos;t want them mixed with real events.
+                Find a calendar&apos;s ID in Google Calendar Settings → your calendar → &ldquo;Integrate calendar&rdquo;.
+              </p>
+            </div>
           </section>
 
           <section>
@@ -253,6 +518,22 @@ export default function Home() {
                   <option key={id} value={id}>{COLOR_NAMES[id]}</option>
                 ))}
               </select>
+            </div>
+            <div style={groupStyle}>
+              <label style={labelStyle}>Target calendar on B (blank = primary)</label>
+              <input
+                type="text"
+                value={config.targetCalendarIdOnB}
+                onChange={e => setConfig(c => ({ ...c, targetCalendarIdOnB: e.target.value }))}
+                placeholder="Leave blank to use Account B's main calendar"
+                style={fieldStyle}
+              />
+              <p style={{ fontFamily: 'sans-serif', fontSize: '0.75rem', color: '#666', margin: '0.3rem 0 0', lineHeight: '1.4' }}>
+                <strong>Blank (recommended):</strong> mirrors land on B&apos;s main calendar, visible by default.{' '}
+                <strong>Custom ID:</strong> paste a specific calendar&apos;s ID (e.g. a dedicated &ldquo;Busy Blocks&rdquo; calendar)
+                to keep mirrors separate — useful if you don&apos;t want them mixed with real events.
+                Find a calendar&apos;s ID in Google Calendar Settings → your calendar → &ldquo;Integrate calendar&rdquo;.
+              </p>
             </div>
           </section>
 
@@ -311,10 +592,6 @@ export default function Home() {
         </div>
       )}
 
-      {step >= PHASE1_TITLES.length && (
-        <ExecuteStep {...PHASE2_STEPS[step - PHASE1_TITLES.length]} />
-      )}
-
       {step === 2 && plans.map((plan, i) => (
         <div key={plan.scriptId} style={{ marginBottom: '2rem' }}>
           <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
@@ -350,6 +627,10 @@ export default function Home() {
           </pre>
         </div>
       ))}
+
+      {step >= PHASE1_TITLES.length && (
+        <ExecuteStep {...phase2Steps[step - PHASE1_TITLES.length]} />
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
         <button

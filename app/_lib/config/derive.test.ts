@@ -7,6 +7,8 @@ const BASE: WizardConfig = {
   accountB: { email: 'b@example.com', label: '[BB]' },
   colorOnA: 7,
   colorOnB: 2,
+  targetCalendarIdOnA: '',
+  targetCalendarIdOnB: '',
   lookaheadDays: 30,
   direction: 'bidirectional',
   restrictedAccount: 'none',
@@ -55,6 +57,17 @@ test('b-to-a-only / A restricted → mirrors-on-A redirected to B, targets a@exa
   const plans = derive({ ...BASE, direction: 'b-to-a-only', restrictedAccount: 'A' });
   expect(plans).toHaveLength(1);
   expect(plans[0]).toMatchObject({ scriptId: 'mirrors-on-A', deployIn: 'B', targetCalendarId: 'a@example.com' });
+});
+
+test('custom targetCalendarIdOnA / none → planA uses custom target, planB still primary', () => {
+  const plans = derive({ ...BASE, targetCalendarIdOnA: 'custom@group.calendar.google.com' });
+  expect(plans[0]).toMatchObject({ scriptId: 'mirrors-on-A', targetCalendarId: 'custom@group.calendar.google.com' });
+  expect(plans[1]).toMatchObject({ scriptId: 'mirrors-on-B', targetCalendarId: 'primary' });
+});
+
+test('custom targetCalendarIdOnA / A restricted → redirected plan uses custom ID instead of email', () => {
+  const plans = derive({ ...BASE, targetCalendarIdOnA: 'custom@group.calendar.google.com', restrictedAccount: 'A' });
+  expect(plans[0]).toMatchObject({ scriptId: 'mirrors-on-A', deployIn: 'B', targetCalendarId: 'custom@group.calendar.google.com' });
 });
 
 test('derive full snapshot (bidirectional / none)', () => {

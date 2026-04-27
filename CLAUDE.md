@@ -24,7 +24,7 @@ telemetry.
 
 ## Current state
 
-Build order steps 1–7 complete. 8-step wizard (3 Phase 1 config steps + 5 Phase 2 execute steps) with full restricted-account branching, localStorage persistence, and generic execute-step component:
+Build order steps 1–8 complete. 8-step wizard (3 Phase 1 config steps + 5 Phase 2 execute steps) with full restricted-account branching, localStorage persistence, personalized instruction copy, and generic execute-step component:
 
 - `app/_lib/config/types.ts` — `ColorId`, `WizardConfig`, `DeploymentPlan`, `GeneratedScript`
 - `app/_lib/config/defaults.ts` — `DEFAULT_CONFIG` (colorOnA=7/Peacock, colorOnB=2/Sage, 30 days, bidirectional)
@@ -33,14 +33,14 @@ Build order steps 1–7 complete. 8-step wizard (3 Phase 1 config steps + 5 Phas
 - `app/_lib/script/generate.ts` — `generate(plan: DeploymentPlan): string`
 - `app/_lib/script/colors.ts` — `COLOR_NAMES` lookup table (colorId → human name)
 - `app/components/ExecuteStep.tsx` — `ExecuteStep` component + `ExecuteStepDef` / `TroubleshootItem` types; renders body, optional copy button + `<pre>`, collapsible troubleshooting accordion
-- `app/page.tsx` — wizard (`useState<WizardConfig>` + `step` state); steps 0–2 Phase 1 (accounts, sync settings, scripts); steps 3–7 Phase 2 (ExecuteStep shell with placeholder body, real troubleshoot items); localStorage persistence under key `gcal-wizard`; "Start over" button
+- `app/page.tsx` — wizard (`useState<WizardConfig>` + `step` state); steps 0–2 Phase 1 (accounts, sync settings, scripts); steps 3–7 Phase 2 (personalized JSX bodies via `getPhase2Steps(config, plans)`); `CopyBlock` component for per-script copy buttons in paste step; localStorage persistence under key `gcal-wizard`; "Start over" button
 - `app/_lib/config/derive.test.ts` — 8 Vitest tests covering all direction × restriction combos + snapshot
 - `app/_lib/script/generate.test.ts` — snapshot + config injection assertions
 
 Test framework: Vitest (`npm test`). All 10 tests pass.
 
 The generated script has been pasted into a real Apps Script project and
-confirmed to run in dry-run mode. Next step: Personalized instruction copy per Phase 2 step (build order step 8).
+confirmed to run in dry-run mode. Next step: Troubleshooting accordions per step (build order step 9).
 
 ## Reference: current working Apps Script
 
@@ -246,7 +246,7 @@ calendars. The site needs to:
 5. ✅ Multi-step shell: Phase 1 only, prev/next.
 6. ✅ localStorage persistence + "Start over" button.
 7. ✅ Phase 2 step shell: generic execute-step component.
-8. Personalized instruction copy per Phase 2 step.
+8. ✅ Personalized instruction copy per Phase 2 step.
 9. Troubleshooting accordions per step.
 10. Phase 3 diagnostic flow.
 11. Polish: validation, color picker UI, GitHub links, disclaimers, a11y.
