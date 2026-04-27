@@ -26,9 +26,49 @@ const preStyle = {
   marginTop: '0.5rem',
 };
 
+export function TroubleshootAccordion({ items }: { items: TroubleshootItem[] }) {
+  const [open, setOpen] = useState(false);
+  if (!items.length) return null;
+  return (
+    <div style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          fontFamily: 'sans-serif',
+          fontSize: '0.85rem',
+          color: '#555',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.25rem',
+        }}
+      >
+        <span>{open ? '▾' : '▸'}</span>
+        <span>Troubleshooting</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: '0.75rem' }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ marginBottom: '0.75rem' }}>
+              <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', margin: 0 }}>
+                <strong>{item.symptom}</strong>
+              </p>
+              <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', margin: '0.25rem 0 0', color: '#444' }}>
+                {item.fix}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ExecuteStep({ body, copyContent, troubleshootItems }: ExecuteStepDef) {
   const [copied, setCopied] = useState(false);
-  const [open, setOpen] = useState(false);
 
   function handleCopy() {
     if (!copyContent) return;
@@ -66,43 +106,7 @@ export function ExecuteStep({ body, copyContent, troubleshootItems }: ExecuteSte
         </div>
       )}
 
-      {troubleshootItems && troubleshootItems.length > 0 && (
-        <div style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
-          <button
-            onClick={() => setOpen(o => !o)}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              fontFamily: 'sans-serif',
-              fontSize: '0.85rem',
-              color: '#555',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
-          >
-            <span>{open ? '▾' : '▸'}</span>
-            <span>Troubleshooting</span>
-          </button>
-
-          {open && (
-            <div style={{ marginTop: '0.75rem' }}>
-              {troubleshootItems.map((item, i) => (
-                <div key={i} style={{ marginBottom: '0.75rem' }}>
-                  <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', margin: 0 }}>
-                    <strong>{item.symptom}</strong>
-                  </p>
-                  <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', margin: '0.25rem 0 0', color: '#444' }}>
-                    {item.fix}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <TroubleshootAccordion items={troubleshootItems ?? []} />
     </div>
   );
 }

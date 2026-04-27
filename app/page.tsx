@@ -6,7 +6,7 @@ import { DEFAULT_CONFIG } from './_lib/config/defaults';
 import { derive } from './_lib/config/derive';
 import { generate } from './_lib/script/generate';
 import { COLOR_NAMES } from './_lib/script/colors';
-import { ExecuteStep, ExecuteStepDef } from './components/ExecuteStep';
+import { ExecuteStep, ExecuteStepDef, TroubleshootAccordion, TroubleshootItem } from './components/ExecuteStep';
 
 const COLOR_IDS = Object.keys(COLOR_NAMES).map(Number) as ColorId[];
 
@@ -80,7 +80,7 @@ function getPhase2Steps(config: WizardConfig, plans: DeploymentPlan[]): ExecuteS
   const shareList = [...shares.values()];
 
   const liSt = { marginBottom: '0.75rem', fontFamily: 'sans-serif', fontSize: '0.9rem', lineHeight: '1.6' };
-  const codeSt = { fontFamily: 'monospace', fontSize: '0.85em', background: '#f3f4f6', padding: '0.1em 0.3em', borderRadius: '3px' };
+  const codeSt = { fontFamily: 'monospace', fontSize: '0.85em', background: '#343435', padding: '0.1em 0.3em', borderRadius: '3px' };
 
   return [
     {
@@ -360,6 +360,51 @@ function planSummary(plan: DeploymentPlan, config: WizardConfig): string {
 
 const LS_KEY = 'gcal-wizard';
 
+const STEP0_TROUBLESHOOT: TroubleshootItem[] = [
+  {
+    symptom: "I'm not sure which account should be A vs B",
+    fix: "The labels are just for your reference. A common convention is Account A = primary employer, Account B = consulting client. It only matters that you're consistent — the scripts reference these labels in event titles.",
+  },
+  {
+    symptom: 'What should the label look like?',
+    fix: "Use a short bracketed tag under 6 characters, e.g. [CM] or [SH]. It will be prepended to every mirrored event title so you can tell mirrors apart from real events at a glance.",
+  },
+  {
+    symptom: "I don't know where to find a calendar's ID",
+    fix: "In Google Calendar, click the gear icon → Settings → find your calendar in the left sidebar → click it → scroll to \"Integrate calendar\" → copy the Calendar ID shown there.",
+  },
+];
+
+const STEP1_TROUBLESHOOT: TroubleshootItem[] = [
+  {
+    symptom: "I'm not sure which sync direction to pick",
+    fix: "If both orgs need to see your availability when scheduling, use Bidirectional. If only one org has the scheduling problem (e.g. you only get double-booked on your primary calendar), pick the one-way direction that places mirrors there.",
+  },
+  {
+    symptom: "I don't know if Apps Script is blocked for my account",
+    fix: "Try opening script.google.com while signed in as that account. If it shows an admin restriction error or immediately redirects you away, mark that account as restricted — the wizard will redirect both scripts to deploy in your other account instead.",
+  },
+  {
+    symptom: "What does 'Apps Script blocked' mean exactly?",
+    fix: "Some Google Workspace admins disable Google Apps Script at the domain level for security reasons. If that's the case for one account, you can't create or run scripts under it — but you can still sync by running both scripts under the unrestricted account and sharing calendar access.",
+  },
+];
+
+const STEP2_TROUBLESHOOT: TroubleshootItem[] = [
+  {
+    symptom: "I see two scripts — do I really need both?",
+    fix: "For bidirectional sync, yes — each script runs under one account and mirrors the other direction. To set up only one script, go back to Sync settings and change the direction to one-way.",
+  },
+  {
+    symptom: 'The script looks long. Do I need to read all of it?',
+    fix: "You don't have to, but we show the full source so you can verify what it does before authorizing it. It only reads and writes calendar events — no data leaves Google's environment. If you're in a regulated org, consider sharing this code with your security team before deploying.",
+  },
+  {
+    symptom: "Can I paste both scripts into the same Apps Script project?",
+    fix: "No — each script must run in its own project under the appropriate Google account, so it can authenticate correctly. Mixing them would cause the wrong account to read the wrong calendar.",
+  },
+];
+
 function loadSaved() {
   if (typeof window === 'undefined') return null;
   try { return JSON.parse(localStorage.getItem(LS_KEY) ?? 'null'); } catch { return null; }
@@ -431,6 +476,7 @@ export default function Home() {
       </div>
 
       {step === 0 && (
+        <>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
 
           <section>
@@ -538,9 +584,12 @@ export default function Home() {
           </section>
 
         </div>
+        <TroubleshootAccordion items={STEP0_TROUBLESHOOT} />
+        </>
       )}
 
       {step === 1 && (
+        <>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
           <div style={groupStyle}>
             <label style={labelStyle}>Lookahead days</label>
@@ -590,43 +639,50 @@ export default function Home() {
             </div>
           )}
         </div>
+        <TroubleshootAccordion items={STEP1_TROUBLESHOOT} />
+        </>
       )}
 
-      {step === 2 && plans.map((plan, i) => (
-        <div key={plan.scriptId} style={{ marginBottom: '2rem' }}>
-          <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-            <strong>Script {i + 1}</strong> — {planSummary(plan, config)}
-          </p>
-          <button
-            onClick={() => handleCopy(plan)}
-            style={{
-              marginBottom: '0.5rem',
-              padding: '0.5rem 1rem',
-              cursor: 'pointer',
-              background: copiedId === plan.scriptId ? '#16a34a' : '#1d4ed8',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              fontFamily: 'sans-serif',
-              fontSize: '0.85rem',
-            }}
-          >
-            {copiedId === plan.scriptId ? 'Copied!' : 'Copy script'}
-          </button>
-          <pre style={{
-            background: '#1e1e1e',
-            color: '#d4d4d4',
-            padding: '1rem',
-            overflowX: 'auto',
-            fontSize: '0.8rem',
-            lineHeight: '1.5',
-            borderRadius: '4px',
-            whiteSpace: 'pre',
-          }}>
-            {generate(plan)}
-          </pre>
-        </div>
-      ))}
+      {step === 2 && (
+        <>
+          {plans.map((plan, i) => (
+            <div key={plan.scriptId} style={{ marginBottom: '2rem' }}>
+              <p style={{ fontFamily: 'sans-serif', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                <strong>Script {i + 1}</strong> — {planSummary(plan, config)}
+              </p>
+              <button
+                onClick={() => handleCopy(plan)}
+                style={{
+                  marginBottom: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  cursor: 'pointer',
+                  background: copiedId === plan.scriptId ? '#16a34a' : '#1d4ed8',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontFamily: 'sans-serif',
+                  fontSize: '0.85rem',
+                }}
+              >
+                {copiedId === plan.scriptId ? 'Copied!' : 'Copy script'}
+              </button>
+              <pre style={{
+                background: '#1e1e1e',
+                color: '#d4d4d4',
+                padding: '1rem',
+                overflowX: 'auto',
+                fontSize: '0.8rem',
+                lineHeight: '1.5',
+                borderRadius: '4px',
+                whiteSpace: 'pre',
+              }}>
+                {generate(plan)}
+              </pre>
+            </div>
+          ))}
+          <TroubleshootAccordion items={STEP2_TROUBLESHOOT} />
+        </>
+      )}
 
       {step >= PHASE1_TITLES.length && (
         <ExecuteStep {...phase2Steps[step - PHASE1_TITLES.length]} />
